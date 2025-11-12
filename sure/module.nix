@@ -182,13 +182,13 @@ in {
     };
 
     productName = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
+      type = lib.types.str;
+      default = "Sure";
     };
 
     brandName = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
+      type = lib.types.str;
+      default = "FOSS";
     };
 
     host = lib.mkOption {
@@ -304,7 +304,6 @@ in {
       accessToken = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
-
       };
 
       accessTokenFile = lib.mkOption {
