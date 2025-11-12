@@ -16,7 +16,7 @@ stdenv.mkDerivation (finalAttrs: {
     owner = "we-promise";
     repo = "sure";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-Se9DrMixn4WwZlz3GO+YXOA0RZ/fRJao9za028oKvrg=";
+    hash = "sha256-1BkeNisDSUBK+ocqKgYKwUY+RaNObnRGASYK26nFUcM=";
   };
 
   bundler = bundler.override {ruby = ruby_3_4;};
