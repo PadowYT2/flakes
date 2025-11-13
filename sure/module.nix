@@ -135,6 +135,7 @@
       ''}
 
       set -a
+      # shellcheck disable=SC1091
       source ${cfg.dataDir}/.env
       set +a
 
