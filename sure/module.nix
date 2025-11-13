@@ -31,7 +31,12 @@
 
       REDIS_URL =
         if cfg.redis.createLocally
-        then "unix://${config.services.redis.servers.sure.unixSocket}"
+        then
+          if cfg.redis.password != null
+          then "unix://:${cfg.redis.password}@${config.services.redis.servers.sure.unixSocket}?db=${cfg.redis.name}"
+          else if cfg.redis.passwordFile != null
+          then "unix://:@REDIS_PASSWORD@@${config.services.redis.servers.sure.unixSocket}?db=${cfg.redis.name}"
+          else "unix://${config.services.redis.servers.sure.unixSocket}?db=${cfg.redis.name}"
         else if cfg.redis.password != null
         then "redis://:${cfg.redis.password}@${cfg.redis.host}:${toString cfg.redis.port}/${cfg.redis.name}"
         else if cfg.redis.passwordFile != null
