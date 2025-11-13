@@ -31,8 +31,8 @@
 
       REDIS_URL =
         if cfg.redis.createLocally
-        then "unix://${config.services.redis.servers.sure.unixSocket}?db=${cfg.redis.name}"
-        else "redis://${cfg.redis.host}:${toString cfg.redis.port}/${cfg.redis.name}";
+        then "unix://${config.services.redis.servers."${toString cfg.redis.name}".unixSocket}?db=${toString cfg.redis.name}"
+        else "redis://${cfg.redis.host}:${toString cfg.redis.port}/${toString cfg.redis.name}";
 
       PORT = cfg.port;
       APP_DOMAIN = cfg.appDomain;
@@ -278,8 +278,8 @@ in {
       };
 
       name = lib.mkOption {
-        type = lib.types.str;
-        default = "sure";
+        type = lib.types.int;
+        default = 1;
         description = "The name of the Redis server to create";
       };
 
@@ -512,7 +512,7 @@ in {
       ];
     };
 
-    services.redis.servers."${cfg.redis.name}" = lib.mkIf cfg.redis.createLocally {
+    services.redis.servers."${toString cfg.redis.name}" = lib.mkIf cfg.redis.createLocally {
       enable = true;
       group = cfg.group;
     };
