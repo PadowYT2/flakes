@@ -1,0 +1,27 @@
+diff --git a/config/cable.yml b/config/cable.yml
+index fc5a1eb8..9da511ae 100644
+--- a/config/cable.yml
++++ b/config/cable.yml
+@@ -6,5 +6,6 @@ test:
+ 
+ production:
+   adapter: redis
+-  url: <%= ENV.fetch("REDIS_URL") { "redis://localhost:6379/1" } %>
++  url: <%= ENV.fetch("REDIS_URL") { "redis://localhost:6379" } %>
++  db: <%= ENV.fetch('REDIS_DB', 1) %>
+   channel_prefix: sure_production
+diff --git a/config/environments/production.rb b/config/environments/production.rb
+index 671b5239..5adfb14a 100644
+--- a/config/environments/production.rb
++++ b/config/environments/production.rb
+@@ -69,8 +69,8 @@ Rails.application.configure do
+   # want to log everything, set the level to "debug".
+   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
+ 
+-  if ENV["CACHE_REDIS_URL"].present?
+-    config.cache_store = :redis_cache_store, { url: ENV["CACHE_REDIS_URL"] }
++  if ENV["REDIS_URL"].present?
++    config.cache_store = :redis_cache_store, { url: ENV["REDIS_URL"], db: ENV.fetch("REDIS_DB", 1) }
+   end
+ 
+   config.action_mailer.perform_caching = false

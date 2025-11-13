@@ -1,45 +1,75 @@
 {
   lib,
   stdenv,
+  applyPatches,
   fetchFromGitHub,
-  bundler,
   ruby_3_4,
   bundlerEnv,
+  tailwindcss_4,
   makeWrapper,
   dataDir ? "/var/lib/sure",
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "sure";
-  version = "0.6.5-alpha.8";
+  version = "0.6.5-alpha.9";
 
-  src = fetchFromGitHub {
-    owner = "we-promise";
-    repo = "sure";
-    tag = "v${finalAttrs.version}";
-    hash = "sha256-1BkeNisDSUBK+ocqKgYKwUY+RaNObnRGASYK26nFUcM=";
+  src = applyPatches {
+    src = fetchFromGitHub {
+      owner = "we-promise";
+      repo = "sure";
+      tag = "v${finalAttrs.version}";
+      hash = "sha256-1BkeNisDSUBK+ocqKgYKwUY+RaNObnRGASYK26nFUcM=";
+    };
+
+    patches = [
+      ./0001-build-ffi-gem.diff
+      ./0002-openssl-hotfix.diff
+      ./0003-add-missing-nokogiri.diff
+    ];
+
+    postPatch = ''
+      substituteInPlace ./Gemfile \
+        --replace-fail 'ruby file: ".ruby-version"' 'ruby ">= 3.4.0"'
+    '';
   };
 
-  bundler = bundler.override {ruby = ruby_3_4;};
+  patches = [
+    ./0004-redis-url-database.diff
+  ];
 
-  rubyEnv = bundlerEnv {
-    name = "sure-gems";
+  sureGems = bundlerEnv {
+    name = "${finalAttrs.pname}-gems-${finalAttrs.version}";
+    inherit (finalAttrs) version;
     ruby = ruby_3_4;
-    inherit (finalAttrs) bundler;
-    gemdir = ./.;
+    gemset = "${./.}/gemset.nix";
+    gemdir = finalAttrs.src;
   };
 
-  buildInputs = [finalAttrs.rubyEnv];
-  nativeBuildInputs = [makeWrapper];
+  RAILS_ENV = "production";
+  TAILWINDCSS_INSTALL_DIR = "${tailwindcss_4}/bin";
 
-  env.RAILS_ENV = "production";
+  nativeBuildInputs = [makeWrapper finalAttrs.sureGems finalAttrs.sureGems.wrappedRuby];
+  propagatedBuildInputs = [finalAttrs.sureGems.wrappedRuby];
+  buildInputs = [finalAttrs.sureGems];
 
   buildPhase = ''
     runHook preBuild
 
-    export HOME=$(mktemp -d)
+    patchShebangs bin/
+    for b in $(ls $sureGems/bin/ 2>/dev/null || true); do
+      if [ ! -f bin/$b ]; then
+        ln -s $sureGems/bin/$b bin/$b
+      fi
+    done
 
-    bundle exec bootsnap precompile --gemfile app/ lib/
+    export HOME=$(mktemp -d)
     SECRET_KEY_BASE_DUMMY=1 bundle exec rails assets:precompile
+
+    rm -rf storage log tmp
+    ln -s ${dataDir}/.env .env
+    ln -s ${dataDir}/storage storage
+    ln -s ${dataDir}/log log
+    ln -s ${dataDir}/tmp tmp
 
     runHook postBuild
   '';
@@ -50,30 +80,24 @@ stdenv.mkDerivation (finalAttrs: {
     mkdir -p $out
     cp -r . $out/
 
-    runHook postInstall
-  '';
-
-  postInstall = ''
-    chmod -R u+w $out
-
-    ln -s ${dataDir}/.env $out/.env
-
     mkdir -p $out/bin
 
-    makeWrapper ${finalAttrs.rubyEnv}/bin/bundle $out/bin/sure \
+    makeWrapper ${finalAttrs.sureGems}/bin/bundle $out/bin/sure \
       --set RAILS_ENV production \
       --chdir $out \
       --add-flags "exec rails server"
 
-    makeWrapper ${finalAttrs.rubyEnv}/bin/bundle $out/bin/sure-rails \
+    makeWrapper ${finalAttrs.sureGems}/bin/bundle $out/bin/sure-rails \
       --set RAILS_ENV production \
       --chdir $out \
       --add-flags "exec rails"
 
-    makeWrapper ${finalAttrs.rubyEnv}/bin/bundle $out/bin/sure-worker \
+    makeWrapper ${finalAttrs.sureGems}/bin/bundle $out/bin/sure-worker \
       --set RAILS_ENV production \
       --chdir $out \
       --add-flags "exec sidekiq"
+
+    runHook postInstall
   '';
 
   meta = {

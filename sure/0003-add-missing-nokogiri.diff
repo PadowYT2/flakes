@@ -1,0 +1,22 @@
+diff --git a/Gemfile.lock b/Gemfile.lock
+index c7df1197..fb90590f 100644
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -350,6 +350,7 @@ GEM
+       benchmark
+       logger
+     mini_mime (1.1.5)
++    mini_portile2 (2.8.9)
+     minitest (5.25.5)
+     mocha (2.7.1)
+       ruby2_keywords (>= 0.0.5)
+@@ -370,6 +371,9 @@ GEM
+     net-smtp (0.5.1)
+       net-protocol
+     nio4r (2.7.4)
++    nokogiri (1.18.9)
++      mini_portile2 (~> 2.8.2)
++      racc (~> 1.4)
+     nokogiri (1.18.9-aarch64-linux-gnu)
+       racc (~> 1.4)
+     nokogiri (1.18.9-aarch64-linux-musl)

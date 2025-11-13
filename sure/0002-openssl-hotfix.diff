@@ -1,0 +1,32 @@
+diff --git a/Gemfile b/Gemfile
+index c7df1197..f271e645 100644
+--- a/Gemfile
++++ b/Gemfile
+@@ -49,6 +49,7 @@ gem "aws-sdk-s3", "~> 1.177.0", require: false
+ gem "image_processing", ">= 1.2"
+ 
+ # Other
++gem "openssl"
+ gem "ostruct"
+ gem "bcrypt", "~> 3.1"
+ gem "jwt"
+diff --git a/Gemfile.lock b/Gemfile.lock
+index c7df1197..42a23f03 100644
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -412,6 +412,7 @@ GEM
+       tzinfo
+       validate_url
+       webfinger (~> 2.0)
++    openssl (3.3.2)
+     ostruct (0.6.2)
+     pagy (9.3.5)
+     parallel (1.27.0)
+@@ -734,6 +735,7 @@ DEPENDENCIES
+   omniauth (~> 2.1)
+   omniauth-rails_csrf_protection
+   omniauth_openid_connect
++  openssl
+   ostruct
+   pagy
+   pg (~> 1.5)

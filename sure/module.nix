@@ -95,42 +95,54 @@
               else lib.generators.mkValueStringDefault {} v;
           } "=";
         }
-        env)} ${cfg.stateDir}/.env
+        env)} ${cfg.dataDir}/.env
 
       ${lib.optionalString (cfg.secretKeyBaseFile != null) ''
-        replace-secret '@SECRET_KEY_BASE@' ${lib.escapeShellArg cfg.secretKeyBaseFile} ${cfg.stateDir}/.env
+        replace-secret '@SECRET_KEY_BASE@' ${lib.escapeShellArg cfg.secretKeyBaseFile} ${cfg.dataDir}/.env
       ''}
 
       ${lib.optionalString (cfg.database.passwordFile != null) ''
-        replace-secret '@POSTGRES_PASSWORD@' ${lib.escapeShellArg cfg.database.passwordFile} ${cfg.stateDir}/.env
+        replace-secret '@POSTGRES_PASSWORD@' ${lib.escapeShellArg cfg.database.passwordFile} ${cfg.dataDir}/.env
       ''}
 
       ${lib.optionalString (cfg.redis.passwordFile != null) ''
-        replace-secret '@REDIS_PASSWORD@' ${lib.escapeShellArg cfg.redis.passwordFile} ${cfg.stateDir}/.env
+        replace-secret '@REDIS_PASSWORD@' ${lib.escapeShellArg cfg.redis.passwordFile} ${cfg.dataDir}/.env
       ''}
 
       ${lib.optionalString (cfg.twelveData.apiKeyFile != null) ''
-        replace-secret '@TWELVE_DATA_API_KEY@' ${lib.escapeShellArg cfg.twelveData.apiKeyFile} ${cfg.stateDir}/.env
+        replace-secret '@TWELVE_DATA_API_KEY@' ${lib.escapeShellArg cfg.twelveData.apiKeyFile} ${cfg.dataDir}/.env
       ''}
 
       ${lib.optionalString (cfg.openai.accessTokenFile != null) ''
-        replace-secret '@OPENAI_ACCESS_TOKEN@' ${lib.escapeShellArg cfg.openai.accessTokenFile} ${cfg.stateDir}/.env
+        replace-secret '@OPENAI_ACCESS_TOKEN@' ${lib.escapeShellArg cfg.openai.accessTokenFile} ${cfg.dataDir}/.env
       ''}
 
       ${lib.optionalString (cfg.langfuse.secretKeyFile != null) ''
-        replace-secret '@LANGFUSE_SECRET_KEY@' ${lib.escapeShellArg cfg.langfuse.secretKeyFile} ${cfg.stateDir}/.env
+        replace-secret '@LANGFUSE_SECRET_KEY@' ${lib.escapeShellArg cfg.langfuse.secretKeyFile} ${cfg.dataDir}/.env
       ''}
 
       ${lib.optionalString (cfg.smtp.passwordFile != null) ''
-        replace-secret '@SMTP_PASSWORD@' ${lib.escapeShellArg cfg.smtp.passwordFile} ${cfg.stateDir}/.env
+        replace-secret '@SMTP_PASSWORD@' ${lib.escapeShellArg cfg.smtp.passwordFile} ${cfg.dataDir}/.env
       ''}
 
       ${lib.optionalString (cfg.oidc.clientSecretFile != null) ''
-        replace-secret '@OIDC_CLIENT_SECRET@' ${lib.escapeShellArg cfg.oidc.clientSecretFile} ${cfg.stateDir}/.env
+        replace-secret '@OIDC_CLIENT_SECRET@' ${lib.escapeShellArg cfg.oidc.clientSecretFile} ${cfg.dataDir}/.env
+      ''}
+
+      ${lib.optionalString (cfg.extraEnvironmentFile != null) ''
+        cat ${lib.escapeShellArg cfg.extraEnvironmentFile} >> ${cfg.dataDir}/.env
       ''}
 
       ${cfg.package}/bin/sure-rails db:migrate
     '';
+  };
+
+  cfgService = {
+    User = cfg.user;
+    Group = cfg.group;
+    WorkingDirectory = cfg.package;
+    StateDirectory = "sure";
+    ReadWritePaths = [cfg.dataDir];
   };
 in {
   options.services.sure = {
@@ -155,40 +167,10 @@ in {
       description = "Group to run Sure as";
     };
 
-    stateDir = lib.mkOption {
+    dataDir = lib.mkOption {
       type = lib.types.path;
       default = "/var/lib/sure";
-      description = "The root directory where all of the Sure's data is stored";
-    };
-
-    onboardingState = lib.mkOption {
-      type = lib.types.enum ["open" "closed" "invite_only"];
-      default = "open";
-    };
-
-    secretKeyBase = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
-    };
-
-    secretKeyBaseFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
-      default = null;
-    };
-
-    appDomain = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
-    };
-
-    productName = lib.mkOption {
-      type = lib.types.str;
-      default = "Sure";
-    };
-
-    brandName = lib.mkOption {
-      type = lib.types.str;
-      default = "FOSS";
+      description = "The root directory where all of Sure's data is stored";
     };
 
     host = lib.mkOption {
@@ -209,40 +191,83 @@ in {
       description = "Whether to open the Sure port in the firewall";
     };
 
+    onboardingState = lib.mkOption {
+      type = lib.types.enum ["open" "closed" "invite_only"];
+      default = "open";
+      description = "The onboarding state for new users";
+    };
+
+    secretKeyBase = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "Rails secret key base";
+    };
+
+    secretKeyBaseFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      description = "Path to a file containing the Rails secret key base";
+    };
+
+    appDomain = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "The domain where Sure is hosted";
+    };
+
+    productName = lib.mkOption {
+      type = lib.types.str;
+      default = "Sure";
+      description = "The product name";
+    };
+
+    brandName = lib.mkOption {
+      type = lib.types.str;
+      default = "FOSS";
+      description = "The brand name";
+    };
+
     database = {
       createLocally = lib.mkOption {
         type = lib.types.bool;
         default = true;
+        description = "Whether to create the database locally";
       };
 
       host = lib.mkOption {
         type = lib.types.str;
         default = "127.0.0.1";
+        description = "The host of the database";
       };
 
       port = lib.mkOption {
         type = lib.types.port;
         default = 5432;
+        description = "The port of the database";
       };
 
       name = lib.mkOption {
         type = lib.types.str;
         default = "sure";
+        description = "The name of the database";
       };
 
       user = lib.mkOption {
         type = lib.types.str;
         default = "sure";
+        description = "The user for the database";
       };
 
       password = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "The password for the database";
       };
 
       passwordFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
+        description = "Path to a file containing the database password";
       };
     };
 
@@ -250,53 +275,63 @@ in {
       createLocally = lib.mkOption {
         type = lib.types.bool;
         default = true;
-      };
-
-      host = lib.mkOption {
-        type = lib.types.str;
-        default = "127.0.0.1";
-      };
-
-      port = lib.mkOption {
-        type = lib.types.port;
-        default = 6379;
+        description = "Whether to create the Redis instance locally";
       };
 
       name = lib.mkOption {
         type = lib.types.str;
         default = "sure";
+        description = "The name of the Redis server to create";
+      };
+
+      host = lib.mkOption {
+        type = lib.types.str;
+        default = "127.0.0.1";
+        description = "The host of the Redis server";
+      };
+
+      port = lib.mkOption {
+        type = lib.types.port;
+        default = 6379;
+        description = "The port of the Redis server";
       };
 
       password = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "The password for the Redis server";
       };
 
       passwordFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
+        description = "Path to a file containing the Redis password";
       };
     };
 
     exchangeRateProvider = lib.mkOption {
       type = lib.types.nullOr (lib.types.enum ["twelve_data" "yahoo_finance"]);
       default = "twelve_data";
+      description = "The exchange rate provider to use";
     };
 
     securitiesProvider = lib.mkOption {
       type = lib.types.nullOr (lib.types.enum ["twelve_data" "yahoo_finance"]);
       default = "twelve_data";
+      description = "The securities provider to use";
     };
 
     twelveData = {
       apiKey = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "TwelveData API key";
       };
 
       apiKeyFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
+        description = "Path to a file containing the TwelveData API key";
       };
     };
 
@@ -304,21 +339,25 @@ in {
       accessToken = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "OpenAI access token";
       };
 
       accessTokenFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
+        description = "Path to a file containing the OpenAI access token";
       };
 
       model = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "OpenAI model to use";
       };
 
       uriBase = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "OpenAI base URI";
       };
     };
 
@@ -326,21 +365,25 @@ in {
       host = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = "https://cloud.langfuse.com";
+        description = "Langfuse host URL";
       };
 
       publicKey = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "Langfuse public key";
       };
 
       secretKey = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "Langfuse secret key";
       };
 
       secretKeyFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
+        description = "Path to a file containing the Langfuse secret key";
       };
     };
 
@@ -348,36 +391,43 @@ in {
       address = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "The host of the SMTP server";
       };
 
       port = lib.mkOption {
         type = lib.types.nullOr lib.types.port;
         default = null;
+        description = "The port of the SMTP server";
       };
 
       username = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "The username for the SMTP server";
       };
 
       password = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "The password for the SMTP server";
       };
 
       passwordFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
+        description = "Path to a file containing the SMTP password";
       };
 
       tlsEnabled = lib.mkOption {
         type = lib.types.nullOr lib.types.bool;
         default = null;
+        description = "Whether to enable TLS for SMTP";
       };
 
       emailSender = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "The email sender address";
       };
     };
 
@@ -385,26 +435,31 @@ in {
       clientId = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "OIDC client ID";
       };
 
       clientSecret = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "OIDC client secret";
       };
 
       clientSecretFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
+        description = "Path to a file containing the OIDC client secret";
       };
 
       issuer = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "OIDC issuer URL";
       };
 
       redirectUri = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
+        description = "OIDC redirect URI";
       };
     };
 
@@ -412,6 +467,12 @@ in {
       type = lib.types.attrsOf lib.types.str;
       default = {};
       description = "Extra environment variables to be merged with the main environment variables";
+    };
+
+    extraEnvironmentFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      description = "Additional environment file to be merged with other environment variables";
     };
   };
 
@@ -477,6 +538,28 @@ in {
       // lib.optionalAttrs (cfg.redis.passwordFile != null) {requirePassFile = cfg.redis.passwordFile;}
     );
 
+    systemd.tmpfiles.settings."10-sure" =
+      lib.attrsets.genAttrs
+      [
+        "${cfg.dataDir}/storage"
+        "${cfg.dataDir}/log"
+        "${cfg.dataDir}/tmp"
+      ]
+      (n: {
+        d = {
+          user = cfg.user;
+          group = cfg.group;
+          mode = "0770";
+        };
+      })
+      // {
+        "${cfg.dataDir}".d = {
+          user = cfg.user;
+          group = cfg.group;
+          mode = "0750";
+        };
+      };
+
     systemd.services.sure-setup = {
       description = "Sure setup";
       requiredBy = ["sure.service"];
@@ -484,36 +567,13 @@ in {
       after = lib.optional cfg.database.createLocally "postgresql.service";
       restartTriggers = [cfg.package];
 
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = lib.getExe setupScript;
-        RemainAfterExit = true;
-        User = cfg.user;
-        Group = cfg.group;
-        WorkingDirectory = cfg.package;
-        ReadWritePaths = [cfg.stateDir];
-        StateDirectory = "sure";
-      };
-    };
-
-    systemd.services.sure-worker = {
-      description = "Sure Sidekiq Worker";
-      after =
-        ["sure.service"]
-        ++ lib.optional cfg.database.createLocally "postgresql.service"
-        ++ lib.optional cfg.redis.createLocally "redis-sure.service";
-      wants = ["sure.service"];
-      wantedBy = ["multi-user.target"];
-
-      serviceConfig = {
-        ExecStart = "${cfg.package}/bin/sure-worker";
-        User = cfg.user;
-        Group = cfg.group;
-        Restart = "on-failure";
-        WorkingDirectory = cfg.package;
-        ReadWritePaths = [cfg.stateDir];
-        StateDirectory = "sure";
-      };
+      serviceConfig =
+        cfgService
+        // {
+          Type = "oneshot";
+          ExecStart = lib.getExe setupScript;
+          RemainAfterExit = true;
+        };
     };
 
     systemd.services.sure = {
@@ -525,15 +585,12 @@ in {
       wants = ["network-online.target" "sure-setup.service"];
       wantedBy = ["multi-user.target"];
 
-      serviceConfig = {
-        ExecStart = "${cfg.package}/bin/sure";
-        User = cfg.user;
-        Group = cfg.group;
-        Restart = "on-failure";
-        WorkingDirectory = cfg.package;
-        ReadWritePaths = [cfg.stateDir];
-        StateDirectory = "sure";
-      };
+      serviceConfig =
+        cfgService
+        // {
+          ExecStart = "${cfg.package}/bin/sure";
+          Restart = "on-failure";
+        };
 
       environment = {
         BINDING = cfg.host;
@@ -541,11 +598,28 @@ in {
       };
     };
 
+    systemd.services.sure-worker = {
+      description = "Sure Sidekiq Worker";
+      after =
+        ["sure-setup.service"]
+        ++ lib.optional cfg.database.createLocally "postgresql.service"
+        ++ lib.optional cfg.redis.createLocally "redis-sure.service";
+      wants = ["sure-setup.service"];
+      wantedBy = ["multi-user.target"];
+
+      serviceConfig =
+        cfgService
+        // {
+          ExecStart = "${cfg.package}/bin/sure-worker";
+          Restart = "on-failure";
+        };
+    };
+
     users.users = lib.mkIf (cfg.user == "sure") {
       ${cfg.user} = {
         isSystemUser = true;
         group = cfg.group;
-        home = cfg.stateDir;
+        home = cfg.dataDir;
         extraGroups = lib.optionals cfg.redis.createLocally ["redis"];
       };
     };
