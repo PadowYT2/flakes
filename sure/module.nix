@@ -134,6 +134,10 @@
         cat ${lib.escapeShellArg cfg.extraEnvironmentFile} >> ${cfg.dataDir}/.env
       ''}
 
+      set -a
+      source ${cfg.dataDir}/.env
+      set +a
+
       ${cfg.package}/bin/sure-rails db:migrate
     '';
   };
