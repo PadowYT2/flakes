@@ -149,6 +149,7 @@
     WorkingDirectory = cfg.package;
     StateDirectory = "sure";
     ReadWritePaths = [cfg.dataDir];
+    EnvironmentFile = "${cfg.dataDir}/.env";
   };
 in {
   options.services.sure = {
