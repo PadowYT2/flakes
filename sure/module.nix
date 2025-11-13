@@ -19,9 +19,10 @@
 
       DB_HOST =
         if cfg.database.createLocally
-        then "localhost"
+        then "/run/postgresql"
         else cfg.database.host;
       DB_PORT = cfg.database.port;
+      POSTGRES_DB = cfg.database.name;
       POSTGRES_USER = cfg.database.user;
       POSTGRES_PASSWORD =
         if cfg.database.passwordFile != null
