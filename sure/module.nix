@@ -31,16 +31,7 @@
 
       REDIS_URL =
         if cfg.redis.createLocally
-        then
-          if cfg.redis.password != null
-          then "unix://:${cfg.redis.password}@${config.services.redis.servers.sure.unixSocket}?db=${cfg.redis.name}"
-          else if cfg.redis.passwordFile != null
-          then "unix://:@REDIS_PASSWORD@@${config.services.redis.servers.sure.unixSocket}?db=${cfg.redis.name}"
-          else "unix://${config.services.redis.servers.sure.unixSocket}?db=${cfg.redis.name}"
-        else if cfg.redis.password != null
-        then "redis://:${cfg.redis.password}@${cfg.redis.host}:${toString cfg.redis.port}/${cfg.redis.name}"
-        else if cfg.redis.passwordFile != null
-        then "redis://:@REDIS_PASSWORD@@${cfg.redis.host}:${toString cfg.redis.port}/${cfg.redis.name}"
+        then "unix://${config.services.redis.servers.sure.unixSocket}?db=${cfg.redis.name}"
         else "redis://${cfg.redis.host}:${toString cfg.redis.port}/${cfg.redis.name}";
 
       PORT = cfg.port;
@@ -109,10 +100,6 @@
 
       ${lib.optionalString (cfg.database.passwordFile != null) ''
         replace-secret '@POSTGRES_PASSWORD@' ${lib.escapeShellArg cfg.database.passwordFile} ${cfg.dataDir}/.env
-      ''}
-
-      ${lib.optionalString (cfg.redis.passwordFile != null) ''
-        replace-secret '@REDIS_PASSWORD@' ${lib.escapeShellArg cfg.redis.passwordFile} ${cfg.dataDir}/.env
       ''}
 
       ${lib.optionalString (cfg.twelveData.apiKeyFile != null) ''
@@ -307,18 +294,6 @@ in {
         default = 6379;
         description = "The port of the Redis server";
       };
-
-      password = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "The password for the Redis server";
-      };
-
-      passwordFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
-        default = null;
-        description = "Path to a file containing the Redis password";
-      };
     };
 
     exchangeRateProvider = lib.mkOption {
@@ -503,10 +478,6 @@ in {
         message = "cannot set both services.sure.database.password and services.sure.database.passwordFile";
       }
       {
-        assertion = cfg.redis.password == null || cfg.redis.passwordFile == null;
-        message = "cannot set both services.sure.redis.password and services.sure.redis.passwordFile";
-      }
-      {
         assertion = cfg.twelveData.apiKey == null || cfg.twelveData.apiKeyFile == null;
         message = "cannot set both services.sure.twelveData.apiKey and services.sure.twelveData.apiKeyFile";
       }
@@ -541,14 +512,10 @@ in {
       ];
     };
 
-    services.redis.servers."${cfg.redis.name}" = lib.mkIf cfg.redis.createLocally (
-      {
-        enable = true;
-        group = cfg.group;
-      }
-      // lib.optionalAttrs (cfg.redis.password != null) {requirePass = cfg.redis.password;}
-      // lib.optionalAttrs (cfg.redis.passwordFile != null) {requirePassFile = cfg.redis.passwordFile;}
-    );
+    services.redis.servers."${cfg.redis.name}" = lib.mkIf cfg.redis.createLocally {
+      enable = true;
+      group = cfg.group;
+    };
 
     systemd.tmpfiles.settings."10-sure" =
       lib.attrsets.genAttrs
