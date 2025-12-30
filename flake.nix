@@ -15,11 +15,13 @@
       nixosModules.default = {
         imports = [
           ./sure/module.nix
+          ./ziit/module.nix
         ];
       };
 
       overlays.default = final: prev: {
         sure = prev.callPackage ./sure/default.nix {};
+        ziit = prev.callPackage ./ziit/default.nix {};
       };
     }
     // (inputs.flake-utils.lib.eachDefaultSystem (system: let
@@ -30,6 +32,7 @@
     in {
       packages = {
         sure = pkgs.sure;
+        ziit = pkgs.ziit;
       };
     }));
 }
