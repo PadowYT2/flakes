@@ -1,12 +1,14 @@
 {
   lib,
+  stdenv,
   stdenvNoCC,
   fetchFromGitHub,
   bun,
+  nodejs_24,
   makeBinaryWrapper,
   writableTmpDirAsHomeHook,
-  prisma-engines,
   openssl,
+  prisma-engines_6,
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "ziit";
@@ -38,6 +40,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
       bun install --force --frozen-lockfile --ignore-scripts --no-progress
 
+      bun node_modules/prisma/build/index.js generate
+
       runHook postBuild
     '';
 
@@ -52,17 +56,15 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     dontFixup = true;
 
-    outputHash = "sha256-M+wYAY7NwGayTPTUhAKqcbLr6J5uzN5IEQ4rO7hfO0U=";
+    outputHash = "sha256-Kz1JKzfY7m31rjYsmIMT66UlobPsjpfDOBkgF1AH7uY=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
 
-  nativeBuildInputs = [bun makeBinaryWrapper openssl];
+  nativeBuildInputs = [bun nodejs_24 makeBinaryWrapper openssl];
 
   env = {
     NUXT_TELEMETRY_DISABLED = "1";
-    PRISMA_QUERY_ENGINE_LIBRARY = "${prisma-engines}/lib/libquery_engine.node";
-    PRISMA_SCHEMA_ENGINE_BINARY = "${prisma-engines}/bin/schema-engine";
   };
 
   configurePhase = ''
@@ -72,6 +74,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     chmod -R +w node_modules
 
     rm -r node_modules/sass-embedded*
+
+    patchShebangs node_modules
 
     runHook postConfigure
   '';
@@ -89,13 +93,17 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     mkdir -p $out/share/ziit
     cp -R .output/server/* $out/share/ziit/
+    cp -R .output/public $out/share/
     cp -R prisma $out/share/ziit/
+
+    mkdir -p $out/share/ziit/node_modules/.prisma
+    cp -R node_modules/.prisma/client $out/share/ziit/node_modules/.prisma/
 
     mkdir -p $out/bin
     makeWrapper ${bun}/bin/bun $out/bin/ziit \
       --add-flags "run $out/share/ziit/index.mjs" \
-      --set PRISMA_QUERY_ENGINE_LIBRARY "${prisma-engines}/lib/libquery_engine.node" \
-      --set PRISMA_SCHEMA_ENGINE_BINARY "${prisma-engines}/bin/schema-engine"
+      --set PRISMA_QUERY_ENGINE_LIBRARY "${prisma-engines_6}/lib/libquery_engine.node" \
+      --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [stdenv.cc.cc.lib openssl]}"
 
     runHook postInstall
   '';
