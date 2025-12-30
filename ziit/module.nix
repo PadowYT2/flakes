@@ -246,7 +246,7 @@ in {
           ensureDBOwnership = true;
         }
       ];
-      extraPlugins = ps: [ps.timescaledb];
+      extensions = exts: with exts; [timescaledb];
       settings.shared_preload_libraries = "timescaledb";
     };
 
