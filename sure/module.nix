@@ -514,6 +514,7 @@ in {
 
     services.redis.servers."${toString cfg.redis.name}" = lib.mkIf cfg.redis.createLocally {
       enable = true;
+      user = cfg.user;
       group = cfg.group;
     };
 
