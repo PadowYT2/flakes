@@ -5,6 +5,105 @@
   ...
 }: let
   cfg = config.services.ziit;
+
+  databaseUrl =
+    if cfg.database.createLocally
+    then "postgresql://${cfg.database.user}@localhost/${cfg.database.name}?host=${cfg.database.host}"
+    else if cfg.database.urlFile != null
+    then "@DATABASE_URL@"
+    else cfg.database.url;
+
+  env =
+    (lib.filterAttrs (n: v: v != null) {
+      HOST = cfg.host;
+      PORT = toString cfg.port;
+      NUXT_BASE_URL = cfg.baseUrl;
+      NUXT_DISABLE_REGISTRATION = lib.boolToString cfg.disableRegistration;
+      NUXT_DATABASE_URL = databaseUrl;
+      NUXT_PASETO_KEY =
+        if cfg.pasetoKeyFile != null
+        then "@PASETO_KEY@"
+        else cfg.pasetoKey;
+      NUXT_ADMIN_KEY =
+        if cfg.adminKeyFile != null
+        then "@ADMIN_KEY@"
+        else cfg.adminKey;
+      NUXT_GITHUB_CLIENT_ID =
+        if cfg.github.clientIdFile != null
+        then "@GITHUB_CLIENT_ID@"
+        else cfg.github.clientId;
+      NUXT_GITHUB_CLIENT_SECRET =
+        if cfg.github.clientSecretFile != null
+        then "@GITHUB_CLIENT_SECRET@"
+        else cfg.github.clientSecret;
+      NUXT_EPILOGUE_APP_ID =
+        if cfg.epilogue.appIdFile != null
+        then "@EPILOGUE_APP_ID@"
+        else cfg.epilogue.appId;
+      NUXT_EPILOGUE_APP_SECRET =
+        if cfg.epilogue.appSecretFile != null
+        then "@EPILOGUE_APP_SECRET@"
+        else cfg.epilogue.appSecret;
+    })
+    // cfg.extraEnvironment;
+
+  setupScript = pkgs.writeShellApplication {
+    name = "ziit-setup";
+    runtimeInputs = with pkgs; [coreutils replace-secret sudo];
+    text = ''
+      umask 077
+
+      install -Dm640 -o ${cfg.user} -g ${cfg.group} ${pkgs.writeText "ziit.env" (lib.generators.toKeyValue {} env)} ${cfg.dataDir}/.env
+
+      ${lib.optionalString (cfg.database.urlFile != null) ''
+        replace-secret '@DATABASE_URL@' ${lib.escapeShellArg cfg.database.urlFile} ${cfg.dataDir}/.env
+      ''}
+
+      ${lib.optionalString (cfg.pasetoKeyFile != null) ''
+        replace-secret '@PASETO_KEY@' ${lib.escapeShellArg cfg.pasetoKeyFile} ${cfg.dataDir}/.env
+      ''}
+
+      ${lib.optionalString (cfg.adminKeyFile != null) ''
+        replace-secret '@ADMIN_KEY@' ${lib.escapeShellArg cfg.adminKeyFile} ${cfg.dataDir}/.env
+      ''}
+
+      ${lib.optionalString (cfg.github.clientIdFile != null) ''
+        replace-secret '@GITHUB_CLIENT_ID@' ${lib.escapeShellArg cfg.github.clientIdFile} ${cfg.dataDir}/.env
+      ''}
+
+      ${lib.optionalString (cfg.github.clientSecretFile != null) ''
+        replace-secret '@GITHUB_CLIENT_SECRET@' ${lib.escapeShellArg cfg.github.clientSecretFile} ${cfg.dataDir}/.env
+      ''}
+
+      ${lib.optionalString (cfg.epilogue.appIdFile != null) ''
+        replace-secret '@EPILOGUE_APP_ID@' ${lib.escapeShellArg cfg.epilogue.appIdFile} ${cfg.dataDir}/.env
+      ''}
+
+      ${lib.optionalString (cfg.epilogue.appSecretFile != null) ''
+        replace-secret '@EPILOGUE_APP_SECRET@' ${lib.escapeShellArg cfg.epilogue.appSecretFile} ${cfg.dataDir}/.env
+      ''}
+
+      ${lib.optionalString cfg.database.createLocally ''
+        sudo -u postgres ${config.services.postgresql.package}/bin/psql -d ${cfg.database.name} -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;" || true
+        sudo -u postgres ${config.services.postgresql.package}/bin/psql -d ${cfg.database.name} -c "CREATE EXTENSION IF NOT EXISTS timescaledb;" || true
+      ''}
+
+      set -a
+      # shellcheck disable=SC1091
+      source ${cfg.dataDir}/.env
+      set +a
+
+      sudo -u ${cfg.user} --preserve-env=NUXT_DATABASE_URL ${cfg.package}/bin/ziit-migrate
+    '';
+  };
+
+  cfgService = {
+    User = cfg.user;
+    Group = cfg.group;
+    WorkingDirectory = cfg.dataDir;
+    StateDirectory = lib.removePrefix "/var/lib/" cfg.dataDir;
+    ReadWritePaths = [cfg.dataDir];
+  };
 in {
   options.services.ziit = {
     enable = lib.mkEnableOption "Ziit code time tracking service";
@@ -183,11 +282,10 @@ in {
       };
     };
 
-    environment = lib.mkOption {
-      type = lib.types.listOf lib.types.str;
-      default = [];
-      description = "Additional environment variables to pass to the service";
-      example = ["NODE_ENV=production"];
+    extraEnvironment = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = {};
+      description = "Extra environment variables to be merged with the main environment variables";
     };
   };
 
@@ -247,7 +345,7 @@ in {
         }
       ];
       extensions = exts: with exts; [timescaledb];
-      settings.shared_preload_libraries = "timescaledb";
+      settings.shared_preload_libraries = "timescaledb,pg_stat_statements";
     };
 
     systemd.tmpfiles.settings."10-ziit" = {
@@ -258,49 +356,35 @@ in {
       };
     };
 
-    systemd.services.ziit = {
-      description = "Ziit code time tracking service";
-      after = ["network-online.target"] ++ lib.optionals cfg.database.createLocally ["postgresql.service"];
-      wants = ["network-online.target"];
+    systemd.services.ziit-setup = {
+      description = "Ziit setup";
+      after = lib.optionals cfg.database.createLocally ["postgresql.service"];
       requires = lib.optionals cfg.database.createLocally ["postgresql.service"];
-      wantedBy = ["multi-user.target"];
+      requiredBy = ["ziit.service"];
+      before = ["ziit.service"];
+      restartTriggers = [cfg.package];
 
       serviceConfig = {
-        ExecStartPre = "${cfg.package}/bin/ziit-migrate";
-        ExecStart = "${cfg.package}/bin/ziit";
-        User = cfg.user;
-        Group = cfg.group;
-        Restart = "on-failure";
-        StateDirectory = "ziit";
-        WorkingDirectory = cfg.dataDir;
-        Environment =
-          [
-            "HOST=${cfg.host}"
-            "PORT=${toString cfg.port}"
-            "NUXT_BASE_URL=${cfg.baseUrl}"
-            "NUXT_DISABLE_REGISTRATION=${lib.boolToString cfg.disableRegistration}"
-          ]
-          ++ (
-            if cfg.database.createLocally
-            then ["NUXT_DATABASE_URL=postgresql://${cfg.database.user}@localhost/${cfg.database.name}?host=${cfg.database.host}"]
-            else lib.optional (cfg.database.url != null) "NUXT_DATABASE_URL=${cfg.database.url}"
-          )
-          ++ lib.optional (cfg.pasetoKey != null) "NUXT_PASETO_KEY=${cfg.pasetoKey}"
-          ++ lib.optional (cfg.adminKey != null) "NUXT_ADMIN_KEY=${cfg.adminKey}"
-          ++ lib.optional (cfg.github.clientId != null) "NUXT_GITHUB_CLIENT_ID=${cfg.github.clientId}"
-          ++ lib.optional (cfg.github.clientSecret != null) "NUXT_GITHUB_CLIENT_SECRET=${cfg.github.clientSecret}"
-          ++ lib.optional (cfg.epilogue.appId != null) "NUXT_EPILOGUE_APP_ID=${cfg.epilogue.appId}"
-          ++ lib.optional (cfg.epilogue.appSecret != null) "NUXT_EPILOGUE_APP_SECRET=${cfg.epilogue.appSecret}"
-          ++ cfg.environment;
-        LoadCredential =
-          lib.optional (cfg.pasetoKeyFile != null) "NUXT_PASETO_KEY:${cfg.pasetoKeyFile}"
-          ++ lib.optional (cfg.adminKeyFile != null) "NUXT_ADMIN_KEY:${cfg.adminKeyFile}"
-          ++ lib.optional (cfg.database.urlFile != null) "NUXT_DATABASE_URL:${cfg.database.urlFile}"
-          ++ lib.optional (cfg.github.clientIdFile != null) "NUXT_GITHUB_CLIENT_ID:${cfg.github.clientIdFile}"
-          ++ lib.optional (cfg.github.clientSecretFile != null) "NUXT_GITHUB_CLIENT_SECRET:${cfg.github.clientSecretFile}"
-          ++ lib.optional (cfg.epilogue.appIdFile != null) "NUXT_EPILOGUE_APP_ID:${cfg.epilogue.appIdFile}"
-          ++ lib.optional (cfg.epilogue.appSecretFile != null) "NUXT_EPILOGUE_APP_SECRET:${cfg.epilogue.appSecretFile}";
+        Type = "oneshot";
+        ExecStart = lib.getExe setupScript;
+        RemainAfterExit = true;
       };
+    };
+
+    systemd.services.ziit = {
+      description = "Ziit code time tracking service";
+      after = ["network-online.target" "ziit-setup.service"] ++ lib.optionals cfg.database.createLocally ["postgresql.service"];
+      wants = ["network-online.target"];
+      requires = ["ziit-setup.service"] ++ lib.optionals cfg.database.createLocally ["postgresql.service"];
+      wantedBy = ["multi-user.target"];
+
+      serviceConfig =
+        cfgService
+        // {
+          ExecStart = "${cfg.package}/bin/ziit";
+          Restart = "on-failure";
+          EnvironmentFile = "${cfg.dataDir}/.env";
+        };
     };
 
     users.users = lib.mkIf (cfg.user == "ziit") {
