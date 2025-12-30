@@ -5,7 +5,6 @@
   bun,
   makeBinaryWrapper,
   writableTmpDirAsHomeHook,
-  dart-sass,
   prisma-engines,
   openssl,
 }:
@@ -72,8 +71,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     cp -R ${finalAttrs.node_modules}/. .
     chmod -R +w node_modules
 
-    mkdir -p node_modules/sass-embedded/dist/lib/src/vendor/dart-sass
-    ln -s ${dart-sass}/bin/dart-sass node_modules/sass-embedded/dist/lib/src/vendor/dart-sass/sass
+    rm -r node_modules/sass-embedded*
 
     runHook postConfigure
   '';
@@ -81,7 +79,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   buildPhase = ''
     runHook preBuild
 
-    bun run build
+    bun --bun run build
 
     runHook postBuild
   '';
