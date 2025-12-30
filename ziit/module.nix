@@ -266,6 +266,7 @@ in {
       wantedBy = ["multi-user.target"];
 
       serviceConfig = {
+        ExecStartPre = "${cfg.package}/bin/ziit-migrate";
         ExecStart = "${cfg.package}/bin/ziit";
         User = cfg.user;
         Group = cfg.group;

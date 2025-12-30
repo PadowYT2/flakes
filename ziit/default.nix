@@ -105,6 +105,12 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       --set PRISMA_QUERY_ENGINE_LIBRARY "${prisma-engines_6}/lib/libquery_engine.node" \
       --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [stdenv.cc.cc.lib openssl]}"
 
+    makeWrapper ${bun}/bin/bun $out/bin/ziit-migrate \
+      --add-flags "${finalAttrs.node_modules}/node_modules/prisma/build/index.js db push --schema=$out/share/ziit/prisma/schema.prisma --skip-generate" \
+      --set PRISMA_QUERY_ENGINE_LIBRARY "${prisma-engines_6}/lib/libquery_engine.node" \
+      --set PRISMA_SCHEMA_ENGINE_BINARY "${prisma-engines_6}/bin/schema-engine" \
+      --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [stdenv.cc.cc.lib openssl]}"
+
     runHook postInstall
   '';
 
