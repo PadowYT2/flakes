@@ -17,7 +17,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     owner = "0PandaDEV";
     repo = "Ziit";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-ulbY5mYWP9QGikRguBrnbZCXolds6YpRuoFuH22VnOc=";
+    hash = "sha256-DNaXX9YFksmbMBcVHhwfRZfxS0fHEnkLSMj9cWVE0QI=";
   };
 
   node_modules = stdenvNoCC.mkDerivation {
