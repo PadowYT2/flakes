@@ -11,14 +11,14 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "sure";
-  version = "0.6.5-alpha.9";
+  version = "0.6.6-alpha.8";
 
   src = applyPatches {
     src = fetchFromGitHub {
       owner = "we-promise";
       repo = "sure";
       tag = "v${finalAttrs.version}";
-      hash = "sha256-1BkeNisDSUBK+ocqKgYKwUY+RaNObnRGASYK26nFUcM=";
+      hash = "sha256-+v3Fyc2zfWx4VpBNRas8GYk8h9VwSgpaa5E/rnyJ07E=";
     };
 
     patches = [
@@ -32,10 +32,6 @@ stdenv.mkDerivation (finalAttrs: {
         --replace-fail 'ruby file: ".ruby-version"' 'ruby ">= 3.4.0"'
     '';
   };
-
-  patches = [
-    ./0004-redis-url-database.diff
-  ];
 
   sureGems = bundlerEnv {
     name = "${finalAttrs.pname}-gems-${finalAttrs.version}";
