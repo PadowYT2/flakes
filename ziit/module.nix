@@ -281,7 +281,7 @@ in {
           ]
           ++ (
             if cfg.database.createLocally
-            then ["NUXT_DATABASE_URL=postgresql://${cfg.database.user}@${cfg.database.host}/${cfg.database.name}"]
+            then ["NUXT_DATABASE_URL=postgresql://${cfg.database.user}@localhost/${cfg.database.name}?host=${cfg.database.host}"]
             else lib.optional (cfg.database.url != null) "NUXT_DATABASE_URL=${cfg.database.url}"
           )
           ++ lib.optional (cfg.pasetoKey != null) "NUXT_PASETO_KEY=${cfg.pasetoKey}"
