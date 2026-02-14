@@ -84,8 +84,8 @@
       ''}
 
       ${lib.optionalString cfg.database.createLocally ''
-        sudo -u postgres ${config.services.postgresql.package}/bin/psql -d ${cfg.database.name} -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;" || true
-        sudo -u postgres ${config.services.postgresql.package}/bin/psql -d ${cfg.database.name} -c "CREATE EXTENSION IF NOT EXISTS timescaledb;" || true
+        sudo -u postgres ${config.services.postgresql.package}/bin/psql -d ${cfg.database.name} -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
+        sudo -u postgres ${config.services.postgresql.package}/bin/psql -d ${cfg.database.name} -c "CREATE EXTENSION IF NOT EXISTS timescaledb;"
       ''}
 
       set -a
