@@ -14,12 +14,14 @@
     {
       nixosModules.default = {
         imports = [
+          ./remnawave/node/module.nix
           ./sure/module.nix
           ./ziit/module.nix
         ];
       };
 
       overlays.default = final: prev: {
+        remnawave.node = prev.callPackage ./remnawave/node/default.nix {};
         sure = prev.callPackage ./sure/default.nix {};
         ziit = prev.callPackage ./ziit/default.nix {};
       };
@@ -31,6 +33,7 @@
       };
     in {
       packages = {
+        remnawave = pkgs.remnawave;
         sure = pkgs.sure;
         ziit = pkgs.ziit;
       };
